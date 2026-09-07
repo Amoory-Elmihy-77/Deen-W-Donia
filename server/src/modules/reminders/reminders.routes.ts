@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { authenticate } from '../../middlewares/auth';
+import * as controller from './reminders.controller';
+import { validate } from '../../middlewares/validate';
+import { z } from 'zod';
+const router = Router();
+const createSchema = z.object({ title: z.string().min(1).max(200), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), time: z.string().regex(/^\d{2}:\d{2}$/).optional(), duration: z.number().int().min(1).max(1440).default(60), category: z.string().min(1).default('personal'), notes: z.string().max(1000).optional() });
+router.use(authenticate);
+router.get('/', controller.listReminders);
+router.post('/', validate(createSchema), controller.createReminder);
+router.delete('/:id', controller.deleteReminder);
+export default router;
