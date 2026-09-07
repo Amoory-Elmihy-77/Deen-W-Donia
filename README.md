@@ -2,6 +2,16 @@
 
 A mobile task and goal-management application with an API server, an internal AI service, and an Expo app. It works as a standard task manager, with optional Groq integration for AI-powered features.
 
+## Live deployment
+
+| Service | URL |
+| --- | --- |
+| Backend API | [deen-w-donia.onrender.com](https://deen-w-donia.onrender.com) |
+| AI service | [deen-w-donia-ai.onrender.com](https://deen-w-donia-ai.onrender.com) |
+| Android APK | [Download the latest Expo build](https://expo.dev/accounts/ammarelmihy/projects/deen-w-donya/builds/4cf2296a-c42f-40c0-9d65-72723a545751) |
+
+The Android APK is available from the Expo build page. Install it on an Android device to use the released mobile app.
+
 ## Project structure
 
 | Path | Description |
@@ -41,6 +51,12 @@ EXPO_PUBLIC_API_URL=http://192.168.1.100:4000/api/v1
 ```
 
 Find the address with `ipconfig` on Windows or `ifconfig` on macOS/Linux.
+
+For a release build that connects to the deployed API, use the Render URL instead:
+
+```env
+EXPO_PUBLIC_API_URL=https://deen-w-donia.onrender.com/api/v1
+```
 
 ### 2. Start the API and AI service
 
