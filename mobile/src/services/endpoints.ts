@@ -51,6 +51,7 @@ export const tasksApi = {
   getToday: (date?: string) => api.get('/tasks/today', { params: { date } }),
   createDaily: (data: { title: string; date: string; duration?: number; category?: string; start?: string; anchor?: string; goalId?: string; goalProgressDelta?: number }) => api.post('/tasks/daily', data),
   update: (id: string, data: object) => api.patch(`/tasks/${id}`, data),
+  delete: (id: string) => api.delete(`/tasks/${id}`),
   complete: (id: string) => api.post(`/tasks/${id}/complete`),
   skip: (id: string, reason?: string) =>
     api.post(`/tasks/${id}/skip`, { reason }),
