@@ -100,249 +100,71 @@ function priorityScore(priority: string): number {
 export function buildDayPlan(input: BuildDayInput): BuildDayOutput {
   const { date, wakeTime, sleepTime, dayMode, prayerTimes, routines, fixedEvents, routineTaskDetails } = input;
 
-  // Step 1-2: Parse wake and sleep times
   const wake = parseHHMM(wakeTime, date);
   const sleep = parseHHMM(sleepTime, date);
-  // Handle past-midnight sleep
   if (sleep <= wake) sleep.setDate(sleep.getDate() + 1);
 
-  // Step 3: Prayer times already computed (passed as input)
-
-  // Step 4: Filter active routines for today
   const activeRoutines = routines.filter(
     (r) => r.enabled && isRoutineActiveOnDay(r, date)
   );
 
-  // Step 5: Fixed events from input (already parsed)
+  const plannedTasks: PlannedTask[] = [];
+  const conflicts: PlannerConflict[] = []; // No conflicts generated
 
-  // Step 6-7: Convert prayer anchors to timestamps for each prayer-anchored routine
-  // Build a time-slot availability map
-  const totalMinutes = (sleep.getTime() - wake.getTime()) / 60000;
-
-  // Step 8: Reserve fixed event blocks
-  const reservedSlots: Array<{ start: Date; end: Date; title: string; category: string; source: 'fixed_event' | 'routine' }> = [];
-
+  // Add fixed events
   for (const event of fixedEvents) {
     const start = parseHHMM(event.start, date);
     const end = new Date(start.getTime() + minutesToMs(event.durationMinutes));
-    // Events are commitments, not optional planner suggestions. Keep them visible
-    // even when their time falls outside the selected wake/sleep window.
-    reservedSlots.push({ start, end, title: event.title, category: event.category || 'other', source: 'fixed_event' });
-  }
-
-  // Step 9: Reserve prayer anchor windows (30 min around each prayer)
-  const PRAYER_BUFFER_MS = 15 * 60 * 1000; // 15 min buffer
-  const prayers = [
-    { name: 'Fajr', time: prayerTimes.fajr },
-    { name: 'Dhuhr', time: prayerTimes.dhuhr },
-    { name: 'Asr', time: prayerTimes.asr },
-    { name: 'Maghrib', time: prayerTimes.maghrib },
-    { name: 'Isha', time: prayerTimes.isha },
-  ];
-
-  // Step 10: Sort routines by priority weighting
-  const sortedRoutines = [...activeRoutines].sort((a, b) => {
-    const aScore = priorityScore(a.priority);
-    const bScore = priorityScore(b.priority);
-    if (bScore !== aScore) return bScore - aScore;
-    // Prayer-anchored routines first
-    if (a.schedulingType === 'prayer_anchor' && b.schedulingType !== 'prayer_anchor') return -1;
-    if (b.schedulingType === 'prayer_anchor' && a.schedulingType !== 'prayer_anchor') return 1;
-    return 0;
-  });
-
-  // Step 11: Greedily fit tasks into available slots
-  const plannedTasks: PlannedTask[] = [];
-  const conflicts: PlannerConflict[] = [];
-
-  // The user chooses an exact time for each routine while starting the day.
-  // These are placed first and are never silently shifted by the planner.
-  for (const routine of sortedRoutines) {
-    const details = routineTaskDetails[routine._id.toString()];
-    if (!details?.startTime) continue;
-    const effectiveDuration = applyCompression(routine.duration, routine.minimumDuration, routine.priority, dayMode);
-    if (dayMode === 'recovery' && routine.priority === 'low') continue;
-    const start = parseHHMM(details.startTime, date);
-    const end = new Date(start.getTime() + minutesToMs(effectiveDuration));
-    const hasConflict = start < wake || end > sleep || plannedTasks.some((task) => start < task.scheduledEnd && end > task.scheduledStart) || reservedSlots.some((slot) => start < slot.end && end > slot.start);
-    if (hasConflict) {
-      conflicts.push({ taskTitle: details.title || routine.title, reason: 'The selected time conflicts with another event or is outside your day', suggestion: 'Choose another time for this routine.' });
-      continue;
-    }
-    plannedTasks.push({ routineId: routine._id.toString(), goalId: routine.goalId?.toString(), goalProgressDelta: details.goalProgressDelta ?? routine.goalProgressContribution, title: details.title || routine.title, category: routine.category, duration: effectiveDuration, scheduledStart: start, scheduledEnd: end, anchor: getAnchorLabel(start, prayerTimes, wake), source: 'routine', priority: routine.priority });
-  }
-
-  // First, place prayer-anchored tasks
-  for (const routine of sortedRoutines) {
-    if (routineTaskDetails[routine._id.toString()]?.startTime) continue;
-    if (routine.schedulingType !== 'prayer_anchor' || !routine.anchor) continue;
-
-    const anchorTime = anchorToTimestamp(routine.anchor, prayerTimes, wake, sleep);
-    const effectiveDuration = applyCompression(
-      routine.duration,
-      routine.minimumDuration,
-      routine.priority,
-      dayMode
-    );
-
-    // Step 13: Skip low priority tasks in recovery mode
-    if (dayMode === 'recovery' && routine.priority === 'low') continue;
-
-    const start = anchorTime;
-    const end = new Date(start.getTime() + minutesToMs(effectiveDuration));
-
-    // Check for conflicts with already placed tasks
-    const hasConflict = plannedTasks.some(
-      (t) => start < t.scheduledEnd && end > t.scheduledStart
-    ) || reservedSlots.some(
-      (s) => start < s.end && end > s.start
-    );
-
-    if (hasConflict) {
-      // Try to find next available slot after anchor
-      const shifted = findNextSlot(start, effectiveDuration, plannedTasks, reservedSlots, sleep);
-      if (shifted) {
-        plannedTasks.push({
-          routineId: routine._id?.toString(),
-          goalId: routine.goalId?.toString(),
-          goalProgressDelta: routineTaskDetails[routine._id.toString()]?.goalProgressDelta ?? routine.goalProgressContribution,
-          title: routineTaskDetails[routine._id.toString()]?.title || routine.title,
-          category: routine.category,
-          duration: effectiveDuration,
-          scheduledStart: shifted.start,
-          scheduledEnd: shifted.end,
-          anchor: routine.anchor,
-          source: 'routine',
-          priority: routine.priority,
-        });
-      } else {
-        // Step 12: Conflict detected — collect it
-        conflicts.push({
-          taskTitle: routine.title,
-          reason: 'Not enough time in this slot',
-          suggestion: 'Consider reducing duration or moving to another time',
-        });
-      }
-    } else {
-      plannedTasks.push({
-        routineId: (routine._id as unknown as string)?.toString(),
-        goalId: routine.goalId?.toString(),
-        goalProgressDelta: routineTaskDetails[routine._id.toString()]?.goalProgressDelta ?? routine.goalProgressContribution,
-        title: routineTaskDetails[routine._id.toString()]?.title || routine.title,
-        category: routine.category,
-        duration: effectiveDuration,
-        scheduledStart: start,
-        scheduledEnd: end,
-        anchor: routine.anchor,
-        source: 'routine',
-        priority: routine.priority,
-      });
-    }
-  }
-
-  // Then, place flexible and relative tasks
-  let cursor = new Date(wake.getTime() + 30 * 60 * 1000); // Start 30 min after wake
-
-  for (const routine of sortedRoutines) {
-    if (routineTaskDetails[routine._id.toString()]?.startTime) continue;
-    if (routine.schedulingType === 'prayer_anchor') continue;
-
-    const effectiveDuration = applyCompression(
-      routine.duration,
-      routine.minimumDuration,
-      routine.priority,
-      dayMode
-    );
-
-    if (dayMode === 'recovery' && routine.priority === 'low') continue;
-
-    let start: Date | null = null;
-
-    if (routine.schedulingType === 'fixed' && routine.preferredTime) {
-      start = parseHHMM(routine.preferredTime, date);
-    } else if (routine.schedulingType === 'relative' && routine.relativeRule) {
-      const base = routine.relativeRule.base === 'wake' ? wake : sleep;
-      start = new Date(base.getTime() + minutesToMs(routine.relativeRule.offsetMinutes));
-    } else {
-      // Flexible: find next free slot from cursor
-      start = cursor;
-    }
-
-    if (!start) { start = cursor; }
-
-    const slot = findNextSlot(start, effectiveDuration, plannedTasks, reservedSlots, sleep);
-    if (slot) {
-      plannedTasks.push({
-        routineId: routine._id?.toString(),
-        goalId: routine.goalId?.toString(),
-        goalProgressDelta: routineTaskDetails[routine._id.toString()]?.goalProgressDelta ?? routine.goalProgressContribution,
-        title: routineTaskDetails[routine._id.toString()]?.title || routine.title,
-        category: routine.category,
-        duration: effectiveDuration,
-        scheduledStart: slot.start,
-        scheduledEnd: slot.end,
-        anchor: getAnchorLabel(slot.start, prayerTimes, wake),
-        source: 'routine',
-        priority: routine.priority,
-      });
-      cursor = new Date(slot.end.getTime() + 10 * 60 * 1000); // 10 min break
-    } else {
-      conflicts.push({
-        taskTitle: routine.title,
-        reason: 'No available time slot for this routine today',
-        suggestion: 'Consider a Busy Day mode or skip this routine',
-      });
-    }
-  }
-
-  // Add fixed events to planned tasks
-  for (const slot of reservedSlots) {
     plannedTasks.push({
-      title: slot.title,
-      category: slot.category,
-      duration: (slot.end.getTime() - slot.start.getTime()) / 60000,
-      scheduledStart: slot.start,
-      scheduledEnd: slot.end,
-      source: slot.source,
+      title: event.title,
+      category: event.category || 'other',
+      duration: event.durationMinutes,
+      scheduledStart: start,
+      scheduledEnd: end,
+      source: 'fixed_event',
       priority: 'critical',
     });
   }
 
-  // Step 14: Sort by scheduled start
+  // Sequence all active routines simply starting from wakeTime + 30m
+  let cursor = new Date(wake.getTime() + 30 * 60 * 1000);
+
+  for (const routine of activeRoutines) {
+    const details = routineTaskDetails[routine._id.toString()] || {};
+    const effectiveDuration = applyCompression(routine.duration, routine.minimumDuration, routine.priority, dayMode);
+    
+    // Check if recovery mode skips this
+    if (dayMode === 'recovery' && routine.priority === 'low') continue;
+
+    const start = new Date(cursor);
+    const end = new Date(start.getTime() + minutesToMs(effectiveDuration));
+
+    plannedTasks.push({
+      routineId: (routine._id as unknown as string)?.toString(),
+      goalId: routine.goalId?.toString(),
+      goalProgressDelta: details.goalProgressDelta ?? routine.goalProgressContribution,
+      title: details.title || routine.title,
+      category: routine.category,
+      duration: effectiveDuration,
+      scheduledStart: start,
+      scheduledEnd: end,
+      anchor: getAnchorLabel(start, prayerTimes, wake),
+      source: 'routine',
+      priority: routine.priority,
+    });
+
+    cursor = new Date(end.getTime() + 5 * 60 * 1000); // 5 minute transition buffer
+  }
+
+  // Sort by scheduled start just in case fixed events are placed differently
   plannedTasks.sort((a, b) => a.scheduledStart.getTime() - b.scheduledStart.getTime());
 
-  // Calculate available minutes
+  // Calculate available minutes based on standard day length vs used
+  const totalMinutes = (sleep.getTime() - wake.getTime()) / 60000;
   const usedMinutes = plannedTasks.reduce((sum, t) => sum + t.duration, 0);
   const availableMinutes = Math.max(0, totalMinutes - usedMinutes);
 
   return { tasks: plannedTasks, conflicts, availableMinutes };
-}
-
-function findNextSlot(
-  preferredStart: Date,
-  durationMinutes: number,
-  existing: PlannedTask[],
-  reserved: Array<{ start: Date; end: Date }>,
-  sleepTime: Date
-): { start: Date; end: Date } | null {
-  let start = new Date(preferredStart);
-  const all = [
-    ...existing.map((t) => ({ start: t.scheduledStart, end: t.scheduledEnd })),
-    ...reserved,
-  ].sort((a, b) => a.start.getTime() - b.start.getTime());
-
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const end = new Date(start.getTime() + durationMinutes * 60 * 1000);
-    if (end > sleepTime) return null;
-
-    const overlapping = all.find((slot) => start < slot.end && end > slot.start);
-    if (!overlapping) {
-      return { start, end };
-    }
-    // Move start to after the conflicting slot
-    start = new Date(overlapping.end.getTime() + 5 * 60 * 1000);
-  }
-  return null;
 }
 
 function getAnchorLabel(time: Date, prayerTimes: PrayerTimesResult, wakeTime: Date): string {

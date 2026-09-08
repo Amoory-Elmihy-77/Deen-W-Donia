@@ -9,11 +9,6 @@ import { useAppTheme } from '../src/theme/ThemeProvider';
 
 type Routine = { _id: string; title: string; duration: number; enabled: boolean; anchor?: string; schedulingType: string };
 
-const PRAYER_ANCHORS = [
-  ['after_fajr', 'بعد الفجر 🌅'], ['after_dhuhr', 'بعد الظهر 🕌'], ['before_asr', 'قبل العصر'],
-  ['after_asr', 'بعد العصر 🌇'], ['after_maghrib', 'بعد المغرب 🌙'], ['after_isha', 'بعد العشاء ⭐'], ['before_sleep', 'قبل النوم 😴'],
-] as const;
-
 export default function RoutinesScreen() {
   const { colors } = useAppTheme();
   const styles = makeStyles(colors);
@@ -22,7 +17,6 @@ export default function RoutinesScreen() {
   const [editing, setEditing] = useState<Routine | null>(null);
   const [title, setTitle] = useState('');
   const [duration, setDuration] = useState('30');
-  const [anchor, setAnchor] = useState('');
 
   const { data: routines = [], isLoading } = useQuery({ queryKey: ['routines'], queryFn: () => routinesApi.list().then((r) => r.data.data as Routine[]) });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['routines'] });
@@ -30,13 +24,13 @@ export default function RoutinesScreen() {
   const remove = useMutation({ mutationFn: (id: string) => routinesApi.delete(id), onSuccess: refresh });
 
   const beginEdit = (routine: Routine) => {
-    setEditing(routine); setTitle(routine.title); setDuration(String(routine.duration)); setAnchor(routine.anchor || '');
+    setEditing(routine); setTitle(routine.title); setDuration(String(routine.duration));
   };
   const save = () => {
     const minutes = Number(duration);
     if (!title.trim() || !Number.isInteger(minutes) || minutes < 1 || minutes > 720) { Alert.alert('تحقق من البيانات', 'اكتب اسمًا ومدة من 1 إلى 720 دقيقة.'); return; }
     if (!editing) return;
-    update.mutate({ id: editing._id, data: { title: title.trim(), duration: minutes, schedulingType: anchor ? 'prayer_anchor' : 'flexible', anchor: anchor || null } });
+    update.mutate({ id: editing._id, data: { title: title.trim(), duration: minutes } });
   };
   const confirmDelete = (routine: Routine) => Alert.alert('حذف الروتين؟', `سيتم حذف «${routine.title}» نهائيًا.`, [{ text: 'إلغاء', style: 'cancel' }, { text: 'حذف', style: 'destructive', onPress: () => remove.mutate(routine._id) }]);
 
@@ -60,7 +54,7 @@ export default function RoutinesScreen() {
           <View style={styles.cardTop}>
             <View>
               <Text style={styles.routineTitle}>{routine.title}</Text>
-              <Text style={styles.meta}>{routine.duration} دقيقة · {routine.anchor ? anchorName(routine.anchor) : 'وقت تختاره الخطة'}</Text>
+              <Text style={styles.meta}>{routine.duration} دقيقة</Text>
             </View>
             <View style={[styles.statusBadge, routine.enabled ? { backgroundColor: colors.successBg } : { backgroundColor: colors.surfaceMuted }]}>
               <Text style={[styles.status, routine.enabled ? { color: colors.successText } : { color: colors.textSecondary }]}>
@@ -95,14 +89,6 @@ export default function RoutinesScreen() {
           <Text style={styles.label}>المدة بالدقائق</Text>
           <TextInput style={styles.input} value={duration} onChangeText={setDuration} keyboardType="number-pad" textAlign="right" placeholderTextColor={colors.textMuted} />
           
-          <Text style={styles.label}>وقت الصلاة (اختياري)</Text>
-          <View style={styles.anchors}>
-            <Chip active={!anchor} label="بدون وقت محدد" onPress={() => setAnchor('')} styles={styles} />
-            {PRAYER_ANCHORS.map(([value, label]) => (
-              <Chip key={value} active={anchor === value} label={label} onPress={() => setAnchor(value)} styles={styles} />
-            ))}
-          </View>
-          
           <View style={styles.editorActions}>
             <TouchableOpacity style={styles.cancel} onPress={() => setEditing(null)} activeOpacity={0.7}>
               <Text style={styles.cancelText}>إلغاء</Text>
@@ -116,16 +102,6 @@ export default function RoutinesScreen() {
     )}
   </SafeAreaView>;
 }
-
-function Chip({ active, label, onPress, styles }: any) { 
-  return (
-    <TouchableOpacity style={[styles.chip, active && styles.chipActive]} onPress={onPress} activeOpacity={0.7}>
-      <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  ); 
-}
-
-function anchorName(anchor: string) { return PRAYER_ANCHORS.find(([value]) => value === anchor)?.[1] || anchor; }
 
 const makeStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background }, 
@@ -157,12 +133,6 @@ const makeStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSh
   editorTitle: { color: colors.text, fontSize: Typography.size.lg, fontWeight: '800', textAlign: 'right', marginBottom: Spacing.base }, 
   label: { color: colors.text, fontSize: Typography.size.sm, fontWeight: '700', textAlign: 'right', marginBottom: Spacing.xs, marginTop: Spacing.sm }, 
   input: { backgroundColor: colors.inputBackground, borderColor: colors.border, borderWidth: 1, borderRadius: BorderRadius.md, color: colors.text, padding: Spacing.md, minHeight: 48 }, 
-  
-  anchors: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: Spacing.sm }, 
-  chip: { paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, 
-  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary }, 
-  chipText: { color: colors.textSecondary, fontSize: Typography.size.xs }, 
-  chipTextActive: { color: '#fff', fontWeight: '700' }, 
   
   editorActions: { flexDirection: 'row-reverse', gap: Spacing.sm, marginTop: Spacing.xl }, 
   save: { flex: 1, backgroundColor: colors.primary, padding: Spacing.md, alignItems: 'center', borderRadius: BorderRadius.md, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 }, 
