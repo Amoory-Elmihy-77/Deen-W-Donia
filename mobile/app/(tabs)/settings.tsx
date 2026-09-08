@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  StyleSheet, Alert, ActivityIndicator, Switch,
+  StyleSheet, Alert, ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -82,7 +82,7 @@ export default function SettingsScreen() {
 
   async function handleLogout() {
     Alert.alert('تسجيل الخروج', 'هل تريد تسجيل الخروج؟', [
-      { text: 'لأ' },
+      { text: 'لأ', style: 'cancel' },
       {
         text: 'نعم', style: 'destructive',
         onPress: async () => { await logout(); router.replace('/(auth)/login'); },
@@ -115,7 +115,17 @@ export default function SettingsScreen() {
                 ['light', '☀️', 'فاتح'],
                 ['dark', '🌙', 'داكن'],
                 ['system', '📱', 'النظام'],
-              ] as [ThemePreference, string, string][]).map(([value, icon, label]) => <TouchableOpacity key={value} style={[styles.themeChoice, preference === value && styles.themeChoiceSelected]} onPress={() => chooseTheme(value)}><Text style={styles.themeIcon}>{icon}</Text><Text style={[styles.themeChoiceText, preference === value && styles.themeChoiceTextSelected]}>{label}</Text></TouchableOpacity>)}
+              ] as [ThemePreference, string, string][]).map(([value, icon, label]) => (
+                <TouchableOpacity 
+                  key={value} 
+                  style={[styles.themeChoice, preference === value && styles.themeChoiceSelected]} 
+                  onPress={() => chooseTheme(value)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.themeIcon}>{icon}</Text>
+                  <Text style={[styles.themeChoiceText, preference === value && styles.themeChoiceTextSelected]}>{label}</Text>
+                </TouchableOpacity>
+              ))}
             </View>
           </View>
         </View>
@@ -124,20 +134,27 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>الأمان</Text>
           <View style={styles.card}>
             <View style={styles.securityHeading}>
-              <View><Text style={styles.securityTitle}>كلمة المرور</Text><Text style={styles.securityHint}>حدّثها بانتظام للحفاظ على أمان حسابك</Text></View>
+              <View>
+                <Text style={styles.securityTitle}>كلمة المرور</Text>
+                <Text style={styles.securityHint}>حدّثها بانتظام للحفاظ على أمان حسابك</Text>
+              </View>
               <Text style={styles.securityIcon}>🔒</Text>
             </View>
             {!showPasswordForm ? (
-              <TouchableOpacity style={styles.outlineFullBtn} onPress={() => setShowPasswordForm(true)}><Text style={styles.outlineBtnText}>تغيير كلمة المرور</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.outlineFullBtn} onPress={() => setShowPasswordForm(true)} activeOpacity={0.7}>
+                <Text style={styles.outlineBtnText}>تغيير كلمة المرور</Text>
+              </TouchableOpacity>
             ) : <View style={styles.passwordForm}>
               <TextInput style={styles.keyInput} value={currentPassword} onChangeText={setCurrentPassword} placeholder="كلمة المرور الحالية" placeholderTextColor={colors.textMuted} secureTextEntry textAlign="right" autoComplete="current-password" />
               <TextInput style={styles.keyInput} value={newPassword} onChangeText={setNewPassword} placeholder="كلمة المرور الجديدة (8 أحرف على الأقل)" placeholderTextColor={colors.textMuted} secureTextEntry textAlign="right" autoComplete="new-password" />
               <TextInput style={styles.keyInput} value={confirmPassword} onChangeText={setConfirmPassword} placeholder="تأكيد كلمة المرور الجديدة" placeholderTextColor={colors.textMuted} secureTextEntry textAlign="right" autoComplete="new-password" />
               <View style={styles.aiActions}>
-                <TouchableOpacity style={[styles.connectBtn, { flex: 1 }, changePasswordMutation.isPending && styles.btnDisabled]} onPress={changePassword} disabled={changePasswordMutation.isPending}>
+                <TouchableOpacity style={[styles.connectBtn, { flex: 1 }, changePasswordMutation.isPending && styles.btnDisabled]} onPress={changePassword} disabled={changePasswordMutation.isPending} activeOpacity={0.8}>
                   {changePasswordMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.connectBtnText}>حفظ التغيير</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.outlineBtn} onPress={() => setShowPasswordForm(false)}><Text style={styles.outlineBtnText}>إلغاء</Text></TouchableOpacity>
+                <TouchableOpacity style={styles.outlineBtn} onPress={() => setShowPasswordForm(false)} activeOpacity={0.7}>
+                  <Text style={styles.outlineBtnText}>إلغاء</Text>
+                </TouchableOpacity>
               </View>
             </View>}
           </View>
@@ -157,7 +174,7 @@ export default function SettingsScreen() {
             {!aiConnected ? (
               <>
                 {!showKeyInput ? (
-                  <TouchableOpacity style={styles.connectBtn} onPress={() => setShowKeyInput(true)}>
+                  <TouchableOpacity style={styles.connectBtn} onPress={() => setShowKeyInput(true)} activeOpacity={0.8}>
                     <Text style={styles.connectBtnText}>🔑 ربط مفتاح Groq</Text>
                   </TouchableOpacity>
                 ) : (
@@ -178,6 +195,7 @@ export default function SettingsScreen() {
                       style={[styles.connectBtn, (!groqKey.startsWith('gsk_') || saveKeyMutation.isPending) && styles.btnDisabled]}
                       onPress={() => saveKeyMutation.mutate()}
                       disabled={!groqKey.startsWith('gsk_') || saveKeyMutation.isPending}
+                      activeOpacity={0.8}
                     >
                       {saveKeyMutation.isPending ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.connectBtnText}>اتصل</Text>}
                     </TouchableOpacity>
@@ -186,11 +204,11 @@ export default function SettingsScreen() {
               </>
             ) : (
               <View style={styles.aiActions}>
-                <TouchableOpacity style={styles.outlineBtn} onPress={() => testKeyMutation.mutate()} disabled={testKeyMutation.isPending}>
+                <TouchableOpacity style={styles.outlineBtn} onPress={() => testKeyMutation.mutate()} disabled={testKeyMutation.isPending} activeOpacity={0.7}>
                   {testKeyMutation.isPending ? <ActivityIndicator color={colors.primary} size="small" /> : <Text style={styles.outlineBtnText}>اختبر الاتصال</Text>}
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.outlineBtn, { borderColor: colors.error }]} onPress={() => Alert.alert('إزالة المفتاح', 'هل تريد إزالة مفتاح Groq؟', [{ text: 'لأ' }, { text: 'نعم', style: 'destructive', onPress: () => deleteKeyMutation.mutate() }])}>
-                  <Text style={[styles.outlineBtnText, { color: colors.error }]}>فصل المفتاح</Text>
+                <TouchableOpacity style={[styles.outlineBtn, { borderColor: colors.error, backgroundColor: colors.errorBg }]} onPress={() => Alert.alert('إزالة المفتاح', 'هل تريد إزالة مفتاح Groq؟', [{ text: 'لأ', style: 'cancel' }, { text: 'نعم', style: 'destructive', onPress: () => deleteKeyMutation.mutate() }])} activeOpacity={0.7}>
+                  <Text style={[styles.outlineBtnText, { color: colors.errorText }]}>فصل المفتاح</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -205,7 +223,7 @@ export default function SettingsScreen() {
               <Text style={styles.settingLabel}>المدينة</Text>
               <Text style={styles.settingValue}>{settings?.prayerSettings?.city || 'Cairo'}</Text>
             </View>
-            <View style={styles.settingRow}>
+            <View style={[styles.settingRow, { borderBottomWidth: 0 }]}>
               <Text style={styles.settingLabel}>طريقة الحساب</Text>
               <Text style={styles.settingValue}>{settings?.prayerSettings?.calculationMethod || 'Egypt'}</Text>
             </View>
@@ -213,7 +231,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* Logout */}
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout} activeOpacity={0.7}>
           <Text style={styles.logoutBtnText}>🚪 تسجيل الخروج</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -227,32 +245,48 @@ const makeStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSh
   title: { fontSize: Typography.size.xl, fontWeight: 'bold', color: colors.text },
   content: { padding: Spacing.base, paddingBottom: 100 },
   section: { marginBottom: Spacing.xl },
-  sectionTitle: { fontSize: Typography.size.base, fontWeight: '700', color: colors.text, marginBottom: Spacing.sm, textAlign: 'right' },
-  card: { backgroundColor: colors.surface, borderRadius: BorderRadius.md, padding: Spacing.base, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 1 },
+  sectionTitle: { fontSize: Typography.size.base, fontWeight: '800', color: colors.text, marginBottom: Spacing.sm, textAlign: 'right' },
+  
+  card: { backgroundColor: colors.card, borderRadius: BorderRadius.lg, padding: Spacing.base, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2, borderWidth: 1, borderColor: colors.border },
+  
   userName: { fontSize: Typography.size.lg, fontWeight: 'bold', color: colors.text, textAlign: 'right' },
-  userEmail: { fontSize: Typography.size.sm, color: colors.textSecondary, textAlign: 'right' },
-  aiStatus: { flexDirection: 'row', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.xs },
-  statusDot: { width: 10, height: 10, borderRadius: 5 },
-  aiStatusText: { fontSize: Typography.size.base, color: colors.text },
-  connectBtn: { backgroundColor: colors.primary, padding: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center', marginTop: Spacing.sm },
-  connectBtnText: { color: '#fff', fontWeight: '700', fontSize: Typography.size.base },
+  userEmail: { fontSize: Typography.size.sm, color: colors.textSecondary, textAlign: 'right', marginTop: 2 },
+  
+  aiStatus: { flexDirection: 'row-reverse', alignItems: 'center', marginBottom: Spacing.md, gap: Spacing.sm },
+  statusDot: { width: 12, height: 12, borderRadius: 6, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.2, shadowRadius: 2, elevation: 1 },
+  aiStatusText: { fontSize: Typography.size.base, color: colors.text, fontWeight: '600' },
+  
+  connectBtn: { backgroundColor: colors.primary, padding: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center', marginTop: Spacing.sm, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  connectBtnText: { color: '#fff', fontWeight: '800', fontSize: Typography.size.base },
   btnDisabled: { opacity: 0.5 },
-  keyInput: { borderWidth: 1, borderColor: colors.border, borderRadius: BorderRadius.md, padding: Spacing.md, fontSize: Typography.size.sm, color: colors.text, backgroundColor: colors.surfaceMuted, marginBottom: Spacing.xs },
+  
+  keyInput: { borderWidth: 1, borderColor: colors.border, borderRadius: BorderRadius.md, padding: Spacing.md, fontSize: Typography.size.base, color: colors.text, backgroundColor: colors.inputBackground, marginBottom: Spacing.xs, minHeight: 48 },
   keyHint: { fontSize: Typography.size.xs, color: colors.textMuted, marginBottom: Spacing.sm, textAlign: 'center' },
-  aiActions: { flexDirection: 'row', gap: Spacing.sm, marginTop: Spacing.sm },
-  securityHeading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
-  securityTitle: { color: colors.text, fontWeight: '700', fontSize: Typography.size.base, textAlign: 'right' },
+  
+  aiActions: { flexDirection: 'row-reverse', gap: Spacing.sm, marginTop: Spacing.sm },
+  
+  securityHeading: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.md },
+  securityTitle: { color: colors.text, fontWeight: '800', fontSize: Typography.size.base, textAlign: 'right' },
   securityHint: { color: colors.textSecondary, fontSize: Typography.size.xs, marginTop: 2, textAlign: 'right' },
   securityIcon: { fontSize: 22 },
-  outlineFullBtn: { borderWidth: 1, borderColor: colors.primary, padding: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center' },
+  
+  outlineFullBtn: { borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface, padding: Spacing.md, borderRadius: BorderRadius.md, alignItems: 'center' },
   passwordForm: { gap: Spacing.sm },
-  outlineBtn: { flex: 1, borderWidth: 1, borderColor: colors.primary, padding: Spacing.sm, borderRadius: BorderRadius.md, alignItems: 'center' },
-  outlineBtnText: { color: colors.primary, fontWeight: '600', fontSize: Typography.size.sm },
-  settingRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
+  outlineBtn: { flex: 1, borderWidth: 1, borderColor: colors.primary, backgroundColor: colors.surface, padding: Spacing.sm, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
+  outlineBtnText: { color: colors.primary, fontWeight: '700', fontSize: Typography.size.sm },
+  
+  settingRow: { flexDirection: 'row-reverse', justifyContent: 'space-between', paddingVertical: Spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
   settingLabel: { fontSize: Typography.size.sm, color: colors.textSecondary },
-  settingValue: { fontSize: Typography.size.sm, fontWeight: '600', color: colors.text },
+  settingValue: { fontSize: Typography.size.sm, fontWeight: '700', color: colors.text },
+  
   themeDescription: { fontSize: Typography.size.sm, lineHeight: 20, color: colors.textSecondary, textAlign: 'right', marginBottom: Spacing.md },
-  themeChoices: { flexDirection: 'row-reverse', gap: Spacing.sm }, themeChoice: { flex: 1, alignItems: 'center', paddingVertical: Spacing.sm, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted }, themeChoiceSelected: { borderColor: colors.primary, backgroundColor: colors.primary }, themeIcon: { fontSize: 18, marginBottom: 2 }, themeChoiceText: { fontSize: Typography.size.xs, fontWeight: '700', color: colors.textSecondary }, themeChoiceTextSelected: { color: '#fff' },
-  logoutBtn: { padding: Spacing.base, borderRadius: BorderRadius.md, borderWidth: 1, borderColor: colors.error, alignItems: 'center' },
-  logoutBtnText: { color: colors.error, fontSize: Typography.size.base, fontWeight: '700' },
+  themeChoices: { flexDirection: 'row-reverse', gap: Spacing.sm }, 
+  themeChoice: { flex: 1, alignItems: 'center', paddingVertical: Spacing.md, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface }, 
+  themeChoiceSelected: { borderColor: colors.primary, backgroundColor: colors.primary, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 4 }, 
+  themeIcon: { fontSize: 24, marginBottom: Spacing.xs }, 
+  themeChoiceText: { fontSize: Typography.size.xs, fontWeight: '700', color: colors.textSecondary }, 
+  themeChoiceTextSelected: { color: '#fff' },
+  
+  logoutBtn: { padding: Spacing.md, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: colors.error, backgroundColor: colors.errorBg, alignItems: 'center', marginTop: Spacing.md },
+  logoutBtnText: { color: colors.errorText, fontSize: Typography.size.base, fontWeight: '800' },
 });

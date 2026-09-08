@@ -47,16 +47,16 @@ export default function ProgressScreen() {
           <>
             {/* Summary */}
             <View style={styles.summaryRow}>
-              <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted }]}>
+              <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
                 <Text style={styles.statNum}>{stats.completed}</Text>
                 <Text style={styles.statLabel}>✅ مكتملة</Text>
               </View>
-              <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted }]}>
+              <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
                 <Text style={styles.statNum}>{stats.skipped}</Text>
                 <Text style={styles.statLabel}>⏭️ متخطاة</Text>
               </View>
-              <View style={[styles.statCard, { backgroundColor: colors.surfaceMuted }]}>
-                <Text style={styles.statNum}>{stats.completionRate}%</Text>
+              <View style={[styles.statCard, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.statNum, { color: colors.primary }]}>{stats.completionRate}%</Text>
                 <Text style={styles.statLabel}>📈 الإنجاز</Text>
               </View>
             </View>
@@ -65,14 +65,20 @@ export default function ProgressScreen() {
             <Text style={styles.sectionTitle}>التفاصيل حسب الفئة</Text>
             {Object.entries(stats.byCategory as Record<string, { planned: number; completed: number; totalMinutes: number }>).map(([cat, info]) => {
               const pct = info.planned > 0 ? Math.round((info.completed / info.planned) * 100) : 0;
+              // Add specific colors for categories
+              const catColor = cat === 'deen' ? colors.deen : 
+                               cat === 'dunya' ? colors.dunya : 
+                               cat === 'health' ? colors.success : 
+                               cat === 'work' ? colors.info : 
+                               colors.primary;
               return (
                 <View key={cat} style={styles.catCard}>
                   <View style={styles.catTop}>
                     <Text style={styles.catName}>{CATEGORY_LABELS[cat] || cat}</Text>
-                    <Text style={styles.catPct}>{pct}%</Text>
+                    <Text style={[styles.catPct, { color: catColor }]}>{pct}%</Text>
                   </View>
                   <View style={styles.catBar}>
-                  <View style={[styles.catFill, { width: `${pct}%` as any, backgroundColor: cat === 'deen' ? colors.deen : colors.primary }]} />
+                    <View style={[styles.catFill, { width: `${pct}%` as any, backgroundColor: catColor }]} />
                   </View>
                   <Text style={styles.catDetail}>{info.completed}/{info.planned} مهمة · {info.totalMinutes} دقيقة</Text>
                 </View>
@@ -87,19 +93,34 @@ export default function ProgressScreen() {
               const isExpanded = expandedDate === day.date;
               return (
                 <View key={day.date} style={styles.historyCard}>
-                  <TouchableOpacity style={styles.historyHeader} onPress={() => setExpandedDate(isExpanded ? null : day.date)}>
-                    <View><Text style={styles.historyDate}>{formatHistoryDate(day.date)}</Text><Text style={styles.historyMeta}>{day.completed}/{day.total} مكتملة · {completionRate}%</Text></View>
-                    <Text style={styles.historyToggle}>{isExpanded ? '−' : '+'}</Text>
+                  <TouchableOpacity style={styles.historyHeader} onPress={() => setExpandedDate(isExpanded ? null : day.date)} activeOpacity={0.7}>
+                    <View>
+                      <Text style={styles.historyDate}>{formatHistoryDate(day.date)}</Text>
+                      <Text style={styles.historyMeta}>{day.completed}/{day.total} مكتملة · {completionRate}%</Text>
+                    </View>
+                    <View style={[styles.expandIcon, isExpanded && { transform: [{ rotate: '180deg' }] }]}>
+                      <Text style={styles.historyToggle}>▼</Text>
+                    </View>
                   </TouchableOpacity>
-                  <View style={styles.catBar}><View style={[styles.catFill, { width: `${completionRate}%` as any, backgroundColor: colors.primary }]} /></View>
-                  {isExpanded && day.tasks.map((task: any) => <View key={task._id} style={styles.historyTask}><Text style={styles.historyTaskTitle}>{statusEmoji(task.status)} {task.title}</Text><Text style={styles.historyTaskMeta}>{task.duration} دقيقة{task.anchor && task.anchor !== 'flexible' ? ` · ${anchorLabel(task.anchor)}` : ''}</Text></View>)}
+                  <View style={styles.catBar}>
+                    <View style={[styles.catFill, { width: `${completionRate}%` as any, backgroundColor: colors.primary }]} />
+                  </View>
+                  {isExpanded && day.tasks.map((task: any) => (
+                    <View key={task._id} style={styles.historyTask}>
+                      <Text style={styles.historyTaskTitle}>{statusEmoji(task.status)} {task.title}</Text>
+                      <Text style={styles.historyTaskMeta}>{task.duration} دقيقة{task.anchor && task.anchor !== 'flexible' ? ` · ${anchorLabel(task.anchor)}` : ''}</Text>
+                    </View>
+                  ))}
                 </View>
               );
             })}
 
             {/* AI Weekly Insight */}
             <View style={styles.insightCard}>
-              <Text style={styles.insightTitle}>💡 تحليل أسبوعي</Text>
+              <View style={styles.insightHeader}>
+                <Text style={styles.insightEmoji}>💡</Text>
+                <Text style={styles.insightTitle}>تحليل أسبوعي</Text>
+              </View>
               {weeklyAiMutation.data ? (
                 <Text style={styles.insightText}>
                   {weeklyAiMutation.data.data?.data?.insight || weeklyAiMutation.data.data?.data?.message}
@@ -109,8 +130,16 @@ export default function ProgressScreen() {
                   style={styles.insightBtn}
                   onPress={() => weeklyAiMutation.mutate()}
                   disabled={weeklyAiMutation.isPending}
+                  activeOpacity={0.8}
                 >
-                  {weeklyAiMutation.isPending ? <ActivityIndicator color={colors.primary} /> : <Text style={styles.insightBtnText}>🤖 اعرف رأي AI في أسبوعك</Text>}
+                  {weeklyAiMutation.isPending ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <>
+                      <Text style={styles.insightBtnEmoji}>🤖</Text>
+                      <Text style={styles.insightBtnText}>اعرف رأي AI في أسبوعك</Text>
+                    </>
+                  )}
                 </TouchableOpacity>
               )}
             </View>
@@ -139,30 +168,39 @@ const makeStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSh
   title: { fontSize: Typography.size.xl, fontWeight: 'bold', color: colors.text },
   subtitle: { fontSize: Typography.size.sm, color: colors.textSecondary },
   content: { padding: Spacing.base, paddingBottom: 100 },
+  
   summaryRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.xl },
-  statCard: { flex: 1, borderRadius: BorderRadius.md, padding: Spacing.md, alignItems: 'center' },
+  statCard: { flex: 1, borderRadius: BorderRadius.md, padding: Spacing.md, alignItems: 'center', borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
   statNum: { fontSize: Typography.size['2xl'], fontWeight: 'bold', color: colors.text },
-  statLabel: { fontSize: Typography.size.xs, color: colors.textSecondary, marginTop: Spacing.xs, textAlign: 'center' },
-  sectionTitle: { fontSize: Typography.size.md, fontWeight: '700', color: colors.text, marginBottom: Spacing.md, textAlign: 'right' },
-  catCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.12, shadowRadius: 4, elevation: 1 },
+  statLabel: { fontSize: Typography.size.xs, color: colors.textSecondary, marginTop: Spacing.xs, textAlign: 'center', fontWeight: '600' },
+  
+  sectionTitle: { fontSize: Typography.size.md, fontWeight: '800', color: colors.text, marginBottom: Spacing.md, textAlign: 'right' },
+  
+  catCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.sm, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 6, elevation: 2, borderWidth: 1, borderColor: colors.border },
   catTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xs },
-  catName: { fontSize: Typography.size.base, fontWeight: '600', color: colors.text },
-  catPct: { fontSize: Typography.size.base, fontWeight: '700', color: colors.primary },
-  catBar: { height: 6, backgroundColor: colors.border, borderRadius: 3, marginBottom: Spacing.xs },
-  catFill: { height: 6, borderRadius: 3 },
-  catDetail: { fontSize: Typography.size.xs, color: colors.textMuted, textAlign: 'right' },
+  catName: { fontSize: Typography.size.base, fontWeight: '700', color: colors.text },
+  catPct: { fontSize: Typography.size.base, fontWeight: '800' },
+  catBar: { height: 8, backgroundColor: colors.border, borderRadius: 4, marginBottom: Spacing.xs, overflow: 'hidden' },
+  catFill: { height: '100%', borderRadius: 4 },
+  catDetail: { fontSize: Typography.size.xs, color: colors.textMuted, textAlign: 'right', fontWeight: '600' },
+  
   emptyHistory: { color: colors.textSecondary, textAlign: 'right', paddingVertical: Spacing.sm },
-  historyCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: colors.border },
-  historyHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
+  historyCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: colors.border, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  historyHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.sm },
   historyDate: { color: colors.text, fontSize: Typography.size.base, fontWeight: '700', textAlign: 'right' },
   historyMeta: { color: colors.textSecondary, fontSize: Typography.size.xs, textAlign: 'right', marginTop: 2 },
-  historyToggle: { color: colors.primary, fontSize: Typography.size.xl, fontWeight: '700' },
+  expandIcon: { width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
+  historyToggle: { color: colors.textMuted, fontSize: Typography.size.sm },
   historyTask: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: Spacing.sm, marginTop: Spacing.sm },
-  historyTaskTitle: { color: colors.text, fontSize: Typography.size.sm, textAlign: 'right' },
+  historyTaskTitle: { color: colors.text, fontSize: Typography.size.sm, textAlign: 'right', fontWeight: '600' },
   historyTaskMeta: { color: colors.textMuted, fontSize: Typography.size.xs, textAlign: 'right', marginTop: 2 },
-  insightCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.md, padding: Spacing.base, marginTop: Spacing.base, borderWidth: 1, borderColor: colors.border },
-  insightTitle: { fontSize: Typography.size.md, fontWeight: '700', color: colors.text, marginBottom: Spacing.md },
-  insightText: { fontSize: Typography.size.base, color: colors.text, lineHeight: 24, textAlign: 'right' },
-  insightBtn: { padding: Spacing.md, alignItems: 'center', backgroundColor: colors.surfaceMuted, borderRadius: BorderRadius.sm },
-  insightBtnText: { color: colors.primary, fontWeight: '600', fontSize: Typography.size.base },
+  
+  insightCard: { backgroundColor: colors.primary + '15', borderRadius: BorderRadius.lg, padding: Spacing.base, marginTop: Spacing.xl, borderWidth: 1, borderColor: colors.primary },
+  insightHeader: { flexDirection: 'row-reverse', alignItems: 'center', marginBottom: Spacing.md },
+  insightEmoji: { fontSize: 24, marginLeft: Spacing.sm },
+  insightTitle: { fontSize: Typography.size.lg, fontWeight: '800', color: colors.primary },
+  insightText: { fontSize: Typography.size.base, color: colors.text, lineHeight: 24, textAlign: 'right', fontWeight: '500' },
+  insightBtn: { flexDirection: 'row-reverse', justifyContent: 'center', padding: Spacing.md, alignItems: 'center', backgroundColor: colors.primary, borderRadius: BorderRadius.md, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 8, elevation: 4 },
+  insightBtnEmoji: { fontSize: 20, marginLeft: Spacing.sm },
+  insightBtnText: { color: '#fff', fontWeight: '800', fontSize: Typography.size.base },
 });
