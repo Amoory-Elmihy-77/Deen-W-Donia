@@ -159,7 +159,7 @@ export default function HomeScreen() {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.editTasksBtn} onPress={() => router.push('/daily-tasks' as any)}><Text style={styles.editTasksText}>✏️ مهام اليوم</Text></TouchableOpacity>
-          <TouchableOpacity style={styles.morningFlowBtn} onPress={() => router.push({ pathname: '/morning-flow', params: { date: nextDate, newDay: 'true' } } as any)}><Text style={styles.morningFlowBtnText}>☀️ ابدأ يومًا جديدًا</Text></TouchableOpacity>
+          <TouchableOpacity style={styles.morningFlowBtn} onPress={() => router.push({ pathname: '/morning-flow', params: { date, newDay: 'true' } } as any)}><Text style={styles.morningFlowBtnText}>☀️ ابدأ يومًا جديدًا</Text></TouchableOpacity>
         </View>
       </View>
 
@@ -193,7 +193,7 @@ export default function HomeScreen() {
             <Text style={styles.emptyEmoji}>🌅</Text>
             <Text style={styles.emptyTitle}>يومك فاضي</Text>
             <Text style={styles.emptyText}>أضف مهمة لليوم، أو ابدأ يومًا جديدًا لتحميل مهامك المحفوظة لليوم التالي.</Text>
-            <View style={styles.emptyActions}><TouchableOpacity style={styles.editTasksBtn} onPress={() => setIsAddingTodayTask(true)}><Text style={styles.editTasksText}>＋ أضف مهمة اليوم</Text></TouchableOpacity><TouchableOpacity style={styles.startBtn} onPress={() => router.push({ pathname: '/morning-flow', params: { date: nextDate, newDay: 'true' } } as any)}><Text style={styles.startBtnText}>☀️ ابدأ يومًا جديدًا</Text></TouchableOpacity></View>
+            <View style={styles.emptyActions}><TouchableOpacity style={styles.editTasksBtn} onPress={() => setIsAddingTodayTask(true)}><Text style={styles.editTasksText}>＋ أضف مهمة اليوم</Text></TouchableOpacity><TouchableOpacity style={styles.startBtn} onPress={() => router.push({ pathname: '/morning-flow', params: { date, newDay: 'true' } } as any)}><Text style={styles.startBtnText}>☀️ ابدأ يومًا جديدًا</Text></TouchableOpacity></View>
           </View>
         )}
 
