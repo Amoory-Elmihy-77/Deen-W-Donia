@@ -49,7 +49,7 @@ export async function buildDay(req: AuthenticatedRequest, res: Response): Promis
       prayerTimes,
       routines,
       fixedEvents: fixedEvents || [],
-      routineTaskDetails: Object.fromEntries((routineTasks || []).map((task: { routineId: string; title: string; goalProgressDelta: number }) => [task.routineId, task])),
+      routineTaskDetails: Object.fromEntries((routineTasks || []).map((task: { routineId: string; title: string; goalProgressDelta: number; anchor: string }) => [task.routineId, task])),
     });
 
     // Delete existing tasks for this day to avoid duplicates

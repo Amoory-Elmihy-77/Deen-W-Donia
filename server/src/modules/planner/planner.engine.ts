@@ -44,7 +44,7 @@ export interface BuildDayInput {
   prayerTimes: PrayerTimesResult;
   routines: IRoutine[];
   fixedEvents: FixedEvent[];
-  routineTaskDetails: Record<string, { title: string; goalProgressDelta: number }>;
+  routineTaskDetails: Record<string, { title: string; goalProgressDelta: number; anchor: string }>;
 }
 
 export interface BuildDayOutput {
@@ -155,8 +155,26 @@ export function buildDayPlan(input: BuildDayInput): BuildDayOutput {
   const plannedTasks: PlannedTask[] = [];
   const conflicts: PlannerConflict[] = [];
 
+  // The user chooses a prayer window for each routine while starting the day.
+  // These are placed first and are never silently shifted by the planner.
+  for (const routine of sortedRoutines) {
+    const details = routineTaskDetails[routine._id.toString()];
+    if (!details?.anchor) continue;
+    const effectiveDuration = applyCompression(routine.duration, routine.minimumDuration, routine.priority, dayMode);
+    if (dayMode === 'recovery' && routine.priority === 'low') continue;
+    const start = anchorToTimestamp(details.anchor, prayerTimes, wake, sleep);
+    const end = new Date(start.getTime() + minutesToMs(effectiveDuration));
+    const hasConflict = start < wake || end > sleep || plannedTasks.some((task) => start < task.scheduledEnd && end > task.scheduledStart) || reservedSlots.some((slot) => start < slot.end && end > slot.start);
+    if (hasConflict) {
+      conflicts.push({ taskTitle: details.title || routine.title, reason: 'The selected prayer window conflicts with another event or is outside your day', suggestion: 'Choose another prayer window for this routine.' });
+      continue;
+    }
+    plannedTasks.push({ routineId: routine._id.toString(), goalId: routine.goalId?.toString(), goalProgressDelta: details.goalProgressDelta ?? routine.goalProgressContribution, title: details.title || routine.title, category: routine.category, duration: effectiveDuration, scheduledStart: start, scheduledEnd: end, anchor: details.anchor, source: 'routine', priority: routine.priority });
+  }
+
   // First, place prayer-anchored tasks
   for (const routine of sortedRoutines) {
+    if (routineTaskDetails[routine._id.toString()]?.anchor) continue;
     if (routine.schedulingType !== 'prayer_anchor' || !routine.anchor) continue;
 
     const anchorTime = anchorToTimestamp(routine.anchor, prayerTimes, wake, sleep);
@@ -226,6 +244,7 @@ export function buildDayPlan(input: BuildDayInput): BuildDayOutput {
   let cursor = new Date(wake.getTime() + 30 * 60 * 1000); // Start 30 min after wake
 
   for (const routine of sortedRoutines) {
+    if (routineTaskDetails[routine._id.toString()]?.anchor) continue;
     if (routine.schedulingType === 'prayer_anchor') continue;
 
     const effectiveDuration = applyCompression(
