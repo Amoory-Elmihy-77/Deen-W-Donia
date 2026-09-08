@@ -15,10 +15,6 @@ interface Routine { _id: string; title: string; goalId?: string; duration: numbe
 interface Goal { _id: string; title: string }
 
 const QUICK_WAKE_TIMES = ['05:00', '05:30', '06:00', '06:30', '07:00', '07:30', '08:00'];
-const PRAYER_ANCHORS = [
-  ['after_fajr', 'بعد الفجر 🌅'], ['after_dhuhr', 'بعد الظهر 🕌'], ['before_asr', 'قبل العصر'],
-  ['after_asr', 'بعد العصر 🌇'], ['after_maghrib', 'بعد المغرب 🌙'], ['after_isha', 'بعد العشاء ⭐'], ['before_sleep', 'قبل النوم 😴'],
-] as const;
 
 function getNow(): string {
   const d = new Date();
@@ -44,7 +40,7 @@ export default function MorningFlowScreen() {
   const [newEventDuration, setNewEventDuration] = useState('60');
   const [routineTaskTitles, setRoutineTaskTitles] = useState<Record<string, string>>({});
   const [routineTaskProgress, setRoutineTaskProgress] = useState<Record<string, string>>({});
-  const [routineTaskAnchors, setRoutineTaskAnchors] = useState<Record<string, string>>({});
+  const [routineTaskTimes, setRoutineTaskTimes] = useState<Record<string, string>>({});
   const { data: routines = [] } = useQuery({ queryKey: ['routines'], queryFn: () => routinesApi.list().then((r) => r.data.data as Routine[]) });
   const { data: goals = [] } = useQuery({ queryKey: ['goals', 'active'], queryFn: () => goalsApi.list({ status: 'active' }).then((r) => r.data.data as Goal[]) });
   const targetDayOfWeek = new Date(`${targetDate}T12:00:00`).getDay();
@@ -57,7 +53,7 @@ export default function MorningFlowScreen() {
         wakeTime: selectedWake,
         dayMode: selectedMode,
         fixedEvents,
-        routineTasks: activeRoutines.map((routine) => ({ routineId: routine._id, title: routineTaskTitles[routine._id].trim(), goalProgressDelta: Number(routineTaskProgress[routine._id] || 0), anchor: routineTaskAnchors[routine._id] })),
+        routineTasks: activeRoutines.map((routine) => ({ routineId: routine._id, title: routineTaskTitles[routine._id].trim(), goalProgressDelta: Number(routineTaskProgress[routine._id] || 0), startTime: routineTaskTimes[routine._id].trim() })),
         date: targetDate,
       }),
     onSuccess: (res) => {
@@ -248,7 +244,7 @@ export default function MorningFlowScreen() {
   // ── Step 4: Routine task details ────────────────────────────────────────────
   const routineTasksComplete = activeRoutines.every((routine) => {
     const progress = Number(routineTaskProgress[routine._id] || 0);
-    return routineTaskTitles[routine._id]?.trim() && !!routineTaskAnchors[routine._id] && Number.isFinite(progress) && progress >= 0 && progress <= 100;
+    return routineTaskTitles[routine._id]?.trim() && /^\d{2}:\d{2}$/.test(routineTaskTimes[routine._id]?.trim() || '') && Number.isFinite(progress) && progress >= 0 && progress <= 100;
   });
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -268,8 +264,7 @@ export default function MorningFlowScreen() {
               onChangeText={(title) => setRoutineTaskTitles((current) => ({ ...current, [routine._id]: title }))}
               textAlign="right"
             />
-            <Text style={styles.routineAnchorLabel}>اربط هذه المهمة بوقت صلاة</Text>
-            <View style={styles.routineAnchorOptions}>{PRAYER_ANCHORS.map(([anchor, label]) => <TouchableOpacity key={anchor} style={[styles.routineAnchorOption, routineTaskAnchors[routine._id] === anchor && styles.routineAnchorOptionActive]} onPress={() => setRoutineTaskAnchors((current) => ({ ...current, [routine._id]: anchor }))}><Text style={[styles.routineAnchorText, routineTaskAnchors[routine._id] === anchor && styles.routineAnchorTextActive]}>{label}</Text></TouchableOpacity>)}</View>
+            <TextInput style={styles.progressInput} placeholder="وقت المهمة الذي تختاره (HH:MM) مثل 14:30" placeholderTextColor={Colors.textMuted} value={routineTaskTimes[routine._id] || ''} onChangeText={(time) => setRoutineTaskTimes((current) => ({ ...current, [routine._id]: time }))} keyboardType="numbers-and-punctuation" textAlign="right" />
             <TextInput
               style={styles.progressInput}
               placeholder="نسبة التقدم لهذا الهدف اليوم (٪)"
@@ -330,12 +325,6 @@ const styles = StyleSheet.create({
   routineCard: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.md, padding: Spacing.base, marginBottom: Spacing.md },
   routineQuestion: { color: Colors.text, fontSize: Typography.size.base, fontWeight: '700', textAlign: 'right', marginBottom: Spacing.xs },
   routineMeta: { color: Colors.textSecondary, fontSize: Typography.size.xs, textAlign: 'right', marginBottom: Spacing.sm },
-  routineAnchorLabel: { color: Colors.text, fontSize: Typography.size.sm, fontWeight: '700', textAlign: 'right', marginBottom: Spacing.xs },
-  routineAnchorOptions: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: Spacing.xs, marginBottom: Spacing.sm },
-  routineAnchorOption: { paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs, borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.full, backgroundColor: Colors.bg },
-  routineAnchorOptionActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  routineAnchorText: { color: Colors.textSecondary, fontSize: Typography.size.xs },
-  routineAnchorTextActive: { color: '#fff', fontWeight: '700' },
   progressInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: BorderRadius.sm, padding: Spacing.sm, fontSize: Typography.size.base, color: Colors.text, backgroundColor: Colors.bg, marginTop: Spacing.xs },
   noRoutines: { color: Colors.textSecondary, textAlign: 'center', padding: Spacing.lg },
   buildBtn: { backgroundColor: Colors.primary, padding: Spacing.xl, borderRadius: BorderRadius.lg, alignItems: 'center', marginTop: Spacing.base },

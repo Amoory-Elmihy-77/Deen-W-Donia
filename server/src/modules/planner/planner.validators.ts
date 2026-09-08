@@ -20,7 +20,7 @@ export const buildDaySchema = z.object({
     routineId: z.string(),
     title: z.string().trim().min(1).max(200),
     goalProgressDelta: z.number().min(0).max(100).default(0),
-    anchor: z.enum(['after_fajr', 'after_dhuhr', 'before_asr', 'after_asr', 'after_maghrib', 'after_isha', 'before_sleep']),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/),
   })).optional().default([]),
 });
 

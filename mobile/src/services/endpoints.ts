@@ -66,7 +66,7 @@ export const plannerApi = {
     sleepTime?: string;
     dayMode?: string;
     fixedEvents?: Array<{ title: string; start: string; durationMinutes: number }>;
-    routineTasks?: Array<{ routineId: string; title: string; goalProgressDelta: number; anchor: string }>;
+    routineTasks?: Array<{ routineId: string; title: string; goalProgressDelta: number; startTime: string }>;
     date?: string;
   }) => api.post('/planner/build-day', data),
   reschedule: (data: { delayMinutes?: number; currentTime?: string; date?: string }) =>
