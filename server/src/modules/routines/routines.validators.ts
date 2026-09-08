@@ -15,7 +15,7 @@ export const createRoutineSchema = z.object({
   frequency: z.enum(['daily', 'weekly', 'custom']).default('daily'),
   activeDays: z.array(z.number().int().min(0).max(6)).default([0, 1, 2, 3, 4, 5, 6]),
   schedulingType: z.enum(['fixed', 'flexible', 'prayer_anchor', 'relative']).default('flexible'),
-  anchor: anchorEnum.optional(),
+  anchor: anchorEnum.nullable().optional(),
   relativeRule: z.object({
     base: z.enum(['wake', 'sleep', 'work']),
     offsetMinutes: z.number().int(),

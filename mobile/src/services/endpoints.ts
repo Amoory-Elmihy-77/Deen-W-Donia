@@ -49,7 +49,7 @@ export const routinesApi = {
 // ─── Tasks ───────────────────────────────────────────────────────────────────
 export const tasksApi = {
   getToday: (date?: string) => api.get('/tasks/today', { params: { date } }),
-  createDaily: (data: { title: string; date: string; duration?: number; category?: string; start?: string; goalId?: string; goalProgressDelta?: number }) => api.post('/tasks/daily', data),
+  createDaily: (data: { title: string; date: string; duration?: number; category?: string; start?: string; anchor?: string; goalId?: string; goalProgressDelta?: number }) => api.post('/tasks/daily', data),
   update: (id: string, data: object) => api.patch(`/tasks/${id}`, data),
   complete: (id: string) => api.post(`/tasks/${id}/complete`),
   skip: (id: string, reason?: string) =>
@@ -88,6 +88,7 @@ export const aiApi = {
 export const progressApi = {
   weekly: () => api.get('/progress/weekly'),
   monthly: () => api.get('/progress/monthly'),
+  history: () => api.get('/progress/history'),
 };
 
 export const remindersApi = {

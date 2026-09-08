@@ -7,5 +7,6 @@ router.use(authenticate);
 
 router.get('/weekly', progressController.getWeeklyProgress);
 router.get('/monthly', progressController.getMonthlyProgress);
+router.get('/history', progressController.getHistory);
 
 export default router;

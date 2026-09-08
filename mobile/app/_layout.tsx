@@ -42,6 +42,7 @@ function AppNavigator() {
       <Stack.Screen name="onboarding" />
       <Stack.Screen name="morning-flow" />
       <Stack.Screen name="daily-tasks" />
+      <Stack.Screen name="routines" />
     </Stack>
   </>;
 }

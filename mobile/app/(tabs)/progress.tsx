@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -21,6 +21,11 @@ export default function ProgressScreen() {
     queryKey: ['weekly-progress'],
     queryFn: () => progressApi.weekly().then((r) => r.data.data),
   });
+  const { data: historyData, isLoading: isHistoryLoading } = useQuery({
+    queryKey: ['task-history'],
+    queryFn: () => progressApi.history().then((r) => r.data.data),
+  });
+  const [expandedDate, setExpandedDate] = useState<string | null>(null);
 
   const weeklyAiMutation = useMutation({
     mutationFn: () => aiApi.analyzeWeek(),
@@ -74,6 +79,24 @@ export default function ProgressScreen() {
               );
             })}
 
+            <Text style={styles.sectionTitle}>سجل الأيام السابقة</Text>
+            {isHistoryLoading && <ActivityIndicator color={colors.primary} />}
+            {!isHistoryLoading && historyData?.days?.length === 0 && <Text style={styles.emptyHistory}>لا توجد مهام من أيام سابقة بعد.</Text>}
+            {historyData?.days?.map((day: any) => {
+              const completionRate = day.total ? Math.round((day.completed / day.total) * 100) : 0;
+              const isExpanded = expandedDate === day.date;
+              return (
+                <View key={day.date} style={styles.historyCard}>
+                  <TouchableOpacity style={styles.historyHeader} onPress={() => setExpandedDate(isExpanded ? null : day.date)}>
+                    <View><Text style={styles.historyDate}>{formatHistoryDate(day.date)}</Text><Text style={styles.historyMeta}>{day.completed}/{day.total} مكتملة · {completionRate}%</Text></View>
+                    <Text style={styles.historyToggle}>{isExpanded ? '−' : '+'}</Text>
+                  </TouchableOpacity>
+                  <View style={styles.catBar}><View style={[styles.catFill, { width: `${completionRate}%` as any, backgroundColor: colors.primary }]} /></View>
+                  {isExpanded && day.tasks.map((task: any) => <View key={task._id} style={styles.historyTask}><Text style={styles.historyTaskTitle}>{statusEmoji(task.status)} {task.title}</Text><Text style={styles.historyTaskMeta}>{task.duration} دقيقة{task.anchor && task.anchor !== 'flexible' ? ` · ${anchorLabel(task.anchor)}` : ''}</Text></View>)}
+                </View>
+              );
+            })}
+
             {/* AI Weekly Insight */}
             <View style={styles.insightCard}>
               <Text style={styles.insightTitle}>💡 تحليل أسبوعي</Text>
@@ -98,6 +121,18 @@ export default function ProgressScreen() {
   );
 }
 
+function formatHistoryDate(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString('ar-EG', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function statusEmoji(status: string): string {
+  return status === 'completed' ? '✅' : status === 'skipped' ? '⏭️' : '○';
+}
+
+function anchorLabel(anchor: string): string {
+  return ({ after_fajr: 'بعد الفجر', after_dhuhr: 'بعد الظهر', before_asr: 'قبل العصر', after_asr: 'بعد العصر', after_maghrib: 'بعد المغرب', after_isha: 'بعد العشاء', before_sleep: 'قبل النوم' } as Record<string, string>)[anchor] || anchor;
+}
+
 const makeStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   header: { padding: Spacing.base, backgroundColor: colors.surface, borderBottomWidth: 1, borderBottomColor: colors.border },
@@ -116,6 +151,15 @@ const makeStyles = (colors: ReturnType<typeof useAppTheme>['colors']) => StyleSh
   catBar: { height: 6, backgroundColor: colors.border, borderRadius: 3, marginBottom: Spacing.xs },
   catFill: { height: 6, borderRadius: 3 },
   catDetail: { fontSize: Typography.size.xs, color: colors.textMuted, textAlign: 'right' },
+  emptyHistory: { color: colors.textSecondary, textAlign: 'right', paddingVertical: Spacing.sm },
+  historyCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: colors.border },
+  historyHeader: { flexDirection: 'row-reverse', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.xs },
+  historyDate: { color: colors.text, fontSize: Typography.size.base, fontWeight: '700', textAlign: 'right' },
+  historyMeta: { color: colors.textSecondary, fontSize: Typography.size.xs, textAlign: 'right', marginTop: 2 },
+  historyToggle: { color: colors.primary, fontSize: Typography.size.xl, fontWeight: '700' },
+  historyTask: { borderTopWidth: 1, borderTopColor: colors.border, paddingTop: Spacing.sm, marginTop: Spacing.sm },
+  historyTaskTitle: { color: colors.text, fontSize: Typography.size.sm, textAlign: 'right' },
+  historyTaskMeta: { color: colors.textMuted, fontSize: Typography.size.xs, textAlign: 'right', marginTop: 2 },
   insightCard: { backgroundColor: colors.surface, borderRadius: BorderRadius.md, padding: Spacing.base, marginTop: Spacing.base, borderWidth: 1, borderColor: colors.border },
   insightTitle: { fontSize: Typography.size.md, fontWeight: '700', color: colors.text, marginBottom: Spacing.md },
   insightText: { fontSize: Typography.size.base, color: colors.text, lineHeight: 24, textAlign: 'right' },

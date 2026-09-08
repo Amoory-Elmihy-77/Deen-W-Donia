@@ -14,9 +14,14 @@ export async function createRoutine(req: AuthenticatedRequest, res: Response): P
 }
 
 export async function updateRoutine(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const update: Record<string, unknown> = { ...req.body };
+  if (update.anchor === null) {
+    delete update.anchor;
+    update.$unset = { anchor: 1 };
+  }
   const routine = await Routine.findOneAndUpdate(
     { _id: req.params.id, userId: req.userId },
-    req.body,
+    update,
     { new: true }
   );
   if (!routine) { sendError(res, 'Routine not found', 404); return; }

@@ -68,3 +68,26 @@ export async function getMonthlyProgress(req: AuthenticatedRequest, res: Respons
 
   sendSuccess(res, { period: 'monthly', from, stats });
 }
+
+export async function getHistory(req: AuthenticatedRequest, res: Response): Promise<void> {
+  const today = new Date().toISOString().slice(0, 10);
+  const tasks = await Task.find({ userId: req.userId, date: { $lt: today } })
+    .select('date title status duration category anchor scheduledStart')
+    .sort({ date: -1, scheduledStart: 1 })
+    .lean();
+
+  const byDate = new Map<string, typeof tasks>();
+  for (const task of tasks) {
+    const dailyTasks = byDate.get(task.date) || [];
+    dailyTasks.push(task);
+    byDate.set(task.date, dailyTasks);
+  }
+
+  const days = Array.from(byDate.entries()).slice(0, 30).map(([date, dayTasks]) => ({
+    date,
+    completed: dayTasks.filter((task) => task.status === 'completed').length,
+    total: dayTasks.length,
+    tasks: dayTasks,
+  }));
+  sendSuccess(res, { days });
+}

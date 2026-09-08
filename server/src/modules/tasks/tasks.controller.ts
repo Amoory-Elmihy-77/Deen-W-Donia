@@ -1,8 +1,15 @@
 import { Response } from 'express';
 import { Task } from '../../models/Task';
 import { Goal } from '../../models/Goal';
+import { UserSettings } from '../../models/UserSettings';
 import { sendSuccess, sendError } from '../../utils/response';
 import { AuthenticatedRequest } from '../../types';
+import { anchorToTimestamp, calculatePrayerTimes } from '../planner/prayer.service';
+
+const PRAYER_ANCHORS = new Set([
+  'after_fajr', 'after_dhuhr', 'before_asr', 'after_asr',
+  'after_maghrib', 'after_isha', 'before_sleep',
+]);
 
 function getTodayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -16,12 +23,22 @@ export async function getTodayTasks(req: AuthenticatedRequest, res: Response): P
 
 export async function createDailyTask(req: AuthenticatedRequest, res: Response): Promise<void> {
   try {
-    const { title, date, duration, category, start, goalId, goalProgressDelta } = req.body as { title: string; date: string; duration?: number; category?: string; start?: string; goalId?: string; goalProgressDelta?: number };
+    const { title, date, duration, category, start, anchor, goalId, goalProgressDelta } = req.body as { title: string; date: string; duration?: number; category?: string; start?: string; anchor?: string; goalId?: string; goalProgressDelta?: number };
     const durationMinutes = duration ?? 0;
     if (!title?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(durationMinutes) || durationMinutes < 1 || durationMinutes > 1440) { sendError(res, 'Please provide a title, valid date, and duration between 1 and 1440 minutes.', 400, 'INVALID_DAILY_TASK'); return; }
-    const scheduledStart = start ? new Date(`${date}T${start}:00`) : undefined;
+    if (anchor && !PRAYER_ANCHORS.has(anchor)) { sendError(res, 'Invalid prayer anchor.', 400, 'INVALID_PRAYER_ANCHOR'); return; }
+    let scheduledStart = start ? new Date(`${date}T${start}:00`) : undefined;
     if (scheduledStart && Number.isNaN(scheduledStart.getTime())) { sendError(res, 'Invalid task start time.', 400, 'INVALID_TASK_TIME'); return; }
-    const task = await Task.create({ userId: req.userId, title: title.trim(), date, duration: durationMinutes, category: category || 'personal', scheduledStart, scheduledEnd: scheduledStart ? new Date(scheduledStart.getTime() + durationMinutes * 60000) : undefined, goalId, goalProgressDelta: goalProgressDelta || 0, source: 'manual', status: 'pending', anchor: 'flexible' });
+    if (anchor && !scheduledStart) {
+      const settings = await UserSettings.findOne({ userId: req.userId });
+      const prayerSettings = settings?.prayerSettings || { latitude: 30.0444, longitude: 31.2357, calculationMethod: 'Egypt' };
+      const day = new Date(`${date}T12:00:00`);
+      const prayerTimes = calculatePrayerTimes(prayerSettings.latitude, prayerSettings.longitude, day, prayerSettings.calculationMethod);
+      const wakeTime = new Date(`${date}T05:00:00`);
+      const sleepTime = new Date(`${date}T23:00:00`);
+      scheduledStart = anchorToTimestamp(anchor, prayerTimes, wakeTime, sleepTime);
+    }
+    const task = await Task.create({ userId: req.userId, title: title.trim(), date, duration: durationMinutes, category: category || 'personal', scheduledStart, scheduledEnd: scheduledStart ? new Date(scheduledStart.getTime() + durationMinutes * 60000) : undefined, goalId, goalProgressDelta: goalProgressDelta || 0, source: 'manual', status: 'pending', anchor: anchor || 'flexible' });
     sendSuccess(res, task, 201, 'Daily task added');
   } catch (err) { console.error('createDailyTask error:', err); sendError(res, 'Could not save the daily task.', 500, 'DAILY_TASK_SAVE_FAILED'); }
 }
