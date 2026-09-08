@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, RefreshControl, ActivityIndicator, Alert, TextInput, Vibration,
+  StyleSheet, RefreshControl, ActivityIndicator, Alert, TextInput,
 } from 'react-native';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
@@ -78,10 +78,6 @@ export default function HomeScreen() {
   const [isAddingTodayTask, setIsAddingTodayTask] = useState(false);
   const [isAddingNextDayTask, setIsAddingNextDayTask] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [isTimerRunning, setIsTimerRunning] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [alarmMinutes, setAlarmMinutes] = useState('25');
-  const [isStopwatchVisible, setIsStopwatchVisible] = useState(true);
   const nextDate = addDays(date, 1);
 
   const today = new Date(`${date}T12:00:00`).toLocaleDateString('ar-EG', {
@@ -97,20 +93,6 @@ export default function HomeScreen() {
     queryKey: ['tasks-next-day', nextDate],
     queryFn: () => tasksApi.getToday(nextDate).then((r) => r.data.data as Task[]),
   });
-
-  useEffect(() => {
-    if (!isTimerRunning) return;
-    const interval = setInterval(() => setElapsedSeconds((seconds) => seconds + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isTimerRunning]);
-
-  useEffect(() => {
-    const durationSeconds = Number(alarmMinutes) * 60;
-    if (!isTimerRunning || !Number.isFinite(durationSeconds) || durationSeconds < 60 || elapsedSeconds < durationSeconds) return;
-    setIsTimerRunning(false);
-    Vibration.vibrate([0, 600, 200, 600]);
-    Alert.alert('⏰ انتهى الوقت', 'انتهى وقت المنبّه الذي حددته.');
-  }, [alarmMinutes, elapsedSeconds, isTimerRunning]);
 
   const completeMutation = useMutation({
     mutationFn: (id: string) => tasksApi.complete(id),
@@ -154,33 +136,6 @@ export default function HomeScreen() {
       );
     },
   });
-
-  const startTimer = () => {
-    const minutes = Number(alarmMinutes);
-    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 1440) {
-      Alert.alert('وقت غير صالح', 'أدخل مدة للمنبه بين دقيقة و1440 دقيقة.');
-      return;
-    }
-    setElapsedSeconds(0);
-    setIsTimerRunning(true);
-  };
-
-  const stopTimer = () => {
-    setIsTimerRunning(false);
-    Vibration.cancel();
-    setElapsedSeconds(0);
-  };
-
-  const pauseTimer = () => {
-    setIsTimerRunning(false);
-    Vibration.cancel();
-  };
-
-  const resumeTimer = () => {
-    const remainingSeconds = Number(alarmMinutes) * 60 - elapsedSeconds;
-    if (remainingSeconds <= 0) { Alert.alert('انتهى وقت المنبّه', 'اضغط إعادة قبل بدء مؤقت جديد.'); return; }
-    setIsTimerRunning(true);
-  };
 
   // Group tasks by anchor
   const grouped = (data || []).reduce((acc, task) => {
@@ -227,11 +182,6 @@ export default function HomeScreen() {
         contentContainerStyle={{ paddingBottom: 100 }}
       >
         {isLoading && <ActivityIndicator style={{ marginTop: 40 }} color={Colors.primary} />}
-
-        <View style={styles.stopwatchCard}>
-          <View style={styles.stopwatchHeader}><Text style={styles.stopwatchLabel}>ساعة توقيت مستقلة</Text><TouchableOpacity style={styles.stopwatchToggle} onPress={() => setIsStopwatchVisible((visible) => !visible)}><Text style={styles.stopwatchToggleText}>{isStopwatchVisible ? 'إخفاء' : `إظهار ${formatElapsed(elapsedSeconds)}`}</Text></TouchableOpacity></View>
-          {isStopwatchVisible && <><Text style={styles.stopwatchTime}>{formatElapsed(elapsedSeconds)}</Text><View style={styles.alarmEditor}><Text style={styles.alarmEditorLabel}>المنبّه بعد</Text><TextInput style={styles.alarmEditorInput} value={alarmMinutes} onChangeText={setAlarmMinutes} keyboardType="number-pad" editable={!isTimerRunning} textAlign="center" /><Text style={styles.alarmEditorLabel}>دقيقة</Text></View><Text style={styles.stopwatchLimit}>{isTimerRunning ? 'سينبهك التطبيق عند انتهاء الوقت' : 'حدد وقت المنبّه ثم ابدأ'}</Text><View style={styles.stopwatchActions}>{!isTimerRunning && elapsedSeconds === 0 ? <TouchableOpacity style={styles.pauseTimerBtn} onPress={startTimer}><Text style={styles.pauseTimerText}>ابدأ</Text></TouchableOpacity> : <TouchableOpacity style={styles.pauseTimerBtn} onPress={isTimerRunning ? pauseTimer : resumeTimer}><Text style={styles.pauseTimerText}>{isTimerRunning ? 'إيقاف مؤقت' : 'متابعة'}</Text></TouchableOpacity>}<TouchableOpacity style={styles.resetTimerBtn} onPress={() => setElapsedSeconds(0)}><Text style={styles.resetTimerText}>إعادة</Text></TouchableOpacity><TouchableOpacity style={styles.stopTimerBtn} onPress={stopTimer}><Text style={styles.stopTimerText}>إنهاء</Text></TouchableOpacity></View></>}
-        </View>
 
         {timelineTasks.length > 0 && <View style={styles.timelineCard}>
           <Text style={styles.timelineTitle}>الخط الزمني لليوم</Text>
@@ -341,13 +291,6 @@ function addDays(date: string, days: number): string {
   return result.toISOString().slice(0, 10);
 }
 
-function formatElapsed(totalSeconds: number): string {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-  return [hours, minutes, seconds].map((unit) => String(unit).padStart(2, '0')).join(':');
-}
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.bg },
   header: {
@@ -429,23 +372,6 @@ const styles = StyleSheet.create({
   },
   rescueBtnText: { fontSize: Typography.size.base, fontWeight: '700', color: '#92400E' },
   rescueBtnSub: { fontSize: Typography.size.xs, color: '#92400E', marginTop: 2 },
-  stopwatchCard: { margin: Spacing.base, padding: Spacing.base, backgroundColor: Colors.primary, borderRadius: BorderRadius.lg, alignItems: 'center' },
-  stopwatchHeader: { width: '100%', flexDirection: 'row-reverse', alignItems: 'center', justifyContent: 'space-between' },
-  stopwatchLabel: { color: 'rgba(255,255,255,0.8)', fontSize: Typography.size.sm },
-  stopwatchToggle: { borderWidth: 1, borderColor: 'rgba(255,255,255,0.7)', borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: 4 },
-  stopwatchToggleText: { color: '#fff', fontSize: Typography.size.xs, fontWeight: '700' },
-  stopwatchTime: { color: '#fff', fontSize: 38, fontWeight: '800', marginTop: Spacing.sm, fontVariant: ['tabular-nums'] },
-  alarmEditor: { flexDirection: 'row-reverse', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm },
-  alarmEditorLabel: { color: '#fff', fontSize: Typography.size.sm, fontWeight: '700' },
-  alarmEditorInput: { width: 64, color: Colors.primary, backgroundColor: '#fff', borderRadius: BorderRadius.sm, paddingVertical: Spacing.xs, fontSize: Typography.size.base, fontWeight: '800' },
-  stopwatchLimit: { color: 'rgba(255,255,255,0.85)', fontSize: Typography.size.xs },
-  stopwatchActions: { flexDirection: 'row-reverse', gap: Spacing.sm, marginTop: Spacing.md },
-  pauseTimerBtn: { backgroundColor: '#fff', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full },
-  pauseTimerText: { color: Colors.primary, fontWeight: '700' },
-  resetTimerBtn: { borderWidth: 1, borderColor: '#fff', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full },
-  resetTimerText: { color: '#fff', fontWeight: '700' },
-  stopTimerBtn: { backgroundColor: 'rgba(0,0,0,0.18)', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full },
-  stopTimerText: { color: '#fff', fontWeight: '700' },
   timelineCard: { marginHorizontal: Spacing.base, marginBottom: Spacing.sm, padding: Spacing.base, backgroundColor: Colors.surface, borderRadius: BorderRadius.lg, borderWidth: 1, borderColor: Colors.border },
   timelineTitle: { color: Colors.text, fontSize: Typography.size.md, fontWeight: '800', textAlign: 'right', marginBottom: Spacing.sm },
   timelineRow: { minHeight: 36, flexDirection: 'row-reverse', alignItems: 'center' },
